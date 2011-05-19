@@ -1,0 +1,11 @@
+routes:
+- pattern: /
+  target: function(){ return "Hello world!"; }
+- pattern: /routes
+  target: function(){ return "<pre>".var_export(Milk\Core\Dispatcher::getRoutes(), true)."</pre>"; }
+- pattern: /test
+  target: function(){ return "JKarsrud is nice"; }
+- pattern: /test/@method/@params
+  target: function($method, $params){ return "$method => $params"; }
+- pattern: /date/(?P<year>\d{4})/(?P<month>\d{1,2})/(?P<day>\d{1,2})
+  target: function($year, $month, $day) { return "$year-$month-$day"; }

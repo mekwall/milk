@@ -1,0 +1,30 @@
+---
+production:
+  app_uuid: 1d2cc80e-62e3-4ab2-bd52-05194baa3f5d
+  compress:
+    enabled: true
+  locale:
+    all: sv_SE.UTF-8
+    textdomain: Maklarpaket
+  cache:
+    engine: apc
+  cookie:
+    domain: .maklarpaket.se
+  session:
+    lifetime: "1200"
+    domain: .maklarpaket.se
+  database:
+    dsn: mysql:host=localhost;port=3307;dbname=milk_blog;charset=UTF-8
+    username: root
+    password: 
+  urls:
+    www: //test.maklarpaket.se
+    static: //test.maklarpaket.se/static
+    admin: https://test.maklarpaket.se/admin
+    cdn: //cdn.maklarpaket.se
+    s3: //maklarpaket.s3.amazonaws.com
+stage:
+  compress:
+    enabled: false
+debug: []
+...
