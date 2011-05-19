@@ -3,7 +3,7 @@ namespace Milk\Core;
 
 use Milk\Core\Exception,
 	Milk\Utils\Translation;
-	
+
 class Loader {
 
 	private static $loaded 		= array();
@@ -87,10 +87,14 @@ class Loader {
 
 		// Trigger error if there are no other autoloaders registered
 		if (count(spl_autoload_functions()) == 1) {
+		
+			if (!class_exists("Exception"))
+				self::autoload("Milk\Core\Exception");
+		
 			if (class_exists("Exception")) {
-				/*throw new Exception(
+				throw new Exception(
 					sprintf( _("Could not load %s"), $class )
-				);*/
+				);
 			} else {
 				trigger_error( _("Could not load %s"), $class );
 			}
@@ -151,6 +155,31 @@ class Loader {
 		}
 	}
 	
+}
+
+// Define default path constants
+if (!defined('APP_PATH') && defined('BASE_PATH')) {
+	define('APP_PATH', realpath(BASE_PATH.'/app'));
+	if (!defined('CACHE_PATH'))
+		define('CACHE_PATH', realpath(APP_PATH.'/Cache'));
+	
+	if (!defined('LOG_PATH'))	
+		define('LOG_PATH', realpath(APP_PATH.'/Logs'));
+	
+	if (!defined('TPL_PATH'))
+		define('TPL_PATH', realpath(APP_PATH.'/Templates'));
+	
+	if (!defined('TMP_PATH'))
+		define('TMP_PATH', realpath(BASE_PATH.'/tmp'));
+		
+	if (!defined('BIN_PATH'))
+		define('BIN_PATH', realpath(BASE_PATH.'/bin'));
+		
+	if (!defined('LIB_PATH'))
+		define('LIB_PATH', realpath(BASE_PATH.'/lib'));
+		
+	if (!defined('STATIC_PATH'))	
+		define('STATIC_PATH', realpath(BASE_PATH.'/static'));
 }
 
 // Register autoloader

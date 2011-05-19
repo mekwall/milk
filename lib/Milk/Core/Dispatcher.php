@@ -3,6 +3,8 @@ namespace Milk\Core;
 
 use Milk\Core\Exception,
 	Milk\Core\Dispatcher\Route;
+	
+use Milk\Utils\HTTP;
 
 class Dispatcher {
 	
@@ -13,19 +15,6 @@ class Dispatcher {
 	const JSON	= 3;
 	const YAML	= 4;
 	const IMPORT = 5;
-	
-	// HTTP methods
-	public static $HTTP_Methods = 
-		array(
-			'GET',
-			'POST',
-			'HEAD',
-			'PUT',
-			'DELETE',
-			'OPTIONS',
-			'TRACE',
-			'CONNECT'
-		);
 	
 	// Routes
 	private static $routes = array();
@@ -51,7 +40,6 @@ class Dispatcher {
 				$routes = parse_url($routes, PHP_URL_PATH);
 			case self::FILE:
 				if (is_readable($routes)) {
-					if (strpos($routes, "//") !== FALSE)
 					$ext = strtolower(pathinfo($routes, PATHINFO_EXTENSION));
 					switch($ext) {
 						case 'json':
@@ -66,7 +54,7 @@ class Dispatcher {
 					}
 					$routes = file_get_contents($routes);
 				} else {
-					throw new Exception('File/path is not readable');
+					throw new Exception("$routes is not readable");
 				}
 			break;
 		}
@@ -86,12 +74,16 @@ class Dispatcher {
 					break;
 				}
 				if (!empty($error))
-					throw new Exception('JSON Error: '.$error);
+					throw new Exception('JSON error: '.$error);
 			break;
 			
 			case self::YAML:
-				if (!$yaml = yaml_parse($routes))
-					throw new Exception('Could not parse YAML');
+				if (!function_exists('yaml_parse'))
+					throw new Exception('YAML parser is not installed');
+				if (!$yaml = @yaml_parse($routes)) {
+					$error = (object)error_get_last();
+					throw new Exception('YAML error: '.$error->message);
+				}
 					
 				$routes = (array)$yaml["routes"];
 			break;
@@ -119,7 +111,7 @@ class Dispatcher {
 								//self::import(substr($route->target, 1));
 							}
 						
-							if (strpos($route->target, "function(){") !== false)
+							if (strpos($route->target, "function(") !== false)
 								eval('$route->target='.$route->target.';');
 						}
 						
@@ -156,8 +148,7 @@ class Dispatcher {
 	public static function reroute($uri) {
 		if (PHP_SAPI != 'cli' && !headers_sent()) {
 			// HTTP redirect
-			//self::status($_SERVER['REQUEST_METHOD'] == 'GET' ? 301 : 303);
-			header('Location: '.$uri);
+			HTTP::redirect($uri);
 		}
 		self::mock('GET '.$uri);
 		self::dispatch();
@@ -203,19 +194,28 @@ class Dispatcher {
 			// Get base path
 			$base = substr(rawurldecode($_SERVER['REQUEST_URI']), strlen($route->base)-1);
 		
-			// Check if request uri matches route pattern
-			if (!preg_match('/^'.
+			// Build pattern
+			$pattern = 
+				'|^'.
 				preg_replace(
 					'/(?:{{)?@(\w+\b)(?:}})?/i',
 					// Valid URL characters (RFC 1738)
 					'(?P<\1>[\w\-\.!~\*\'"(),\h]+)',
 					// Wildcard character in URI
-					str_replace( '\*','(.*)', preg_quote($route->pattern, '/') )
-				).'\/?(?:\?.*)?$/i', $base, $args))
+					str_replace( '\*','(.*)', str_replace("|", "\|", $route->pattern) )
+				).'\/?(?:\?.*)?$'.
+				'|i';
+
+			// Check if request uri matches route pattern			
+			if (!$found = 
+					(bool)
+					preg_match(
+						$pattern,
+						$base,
+						$args
+					)
+				)
 				continue;
-			
-			// Found match
-			$found = TRUE;
 			
 			if (!$route->hotlink &&
 				isset($_SERVER['HTTP_REFERER']) &&
@@ -274,7 +274,11 @@ class Dispatcher {
 					$classes[] = is_object($target[0]) ? get_class($target[0]) : $target[0];
 				}
 				
-				$out = call_user_func($target);
+				// Call target method
+				$out = call_user_func_array(
+					$target,
+					array_splice($args, 1)
+				);
 				
 				if ($oop && method_exists($target[0], $after='afterRoute') &&
 					!in_array($target[0], $classes)) {
@@ -289,13 +293,15 @@ class Dispatcher {
 		}
 		
 		// No route matching current request
-		throw new Exception( _("Route not found") );
+		HTTP::notFound();
+		throw new Exception( sprintf(_("Route '%s' does not exist"), $_SERVER['REQUEST_URI']) );
 	}
 }
 
 namespace Milk\Core\Dispatcher;
 
-use Milk\Core\Dispatcher;
+use Milk\Core\Dispatcher,
+	Milk\Utils\HTTP;
 
 class Route {
 
@@ -320,7 +326,7 @@ class Route {
 		if (count($request) > 1)
 			$this->methods = explode('|', strtoupper($request[0]));
 		else
-			$this->methods = &Dispatcher::$HTTP_Methods;
+			$this->methods = &HTTP::$methods;
 
 		$this->pattern = $pattern;
 		$this->ttl = $ttl;
