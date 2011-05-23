@@ -19,10 +19,7 @@ Loader::addNamespaces(
 	)
 );
 
-use Milk\Core\Dispatcher,
-	Milk\Core\Dispatcher\Route;
-	
-use Milk\Utils\Translation;
+use Milk\Core\Dispatcher;
 
 // Add routes with file/url
 Dispatcher::addRoutes(APP_PATH."/urls.yaml", Dispatcher::FILE);

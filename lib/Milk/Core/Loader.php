@@ -59,7 +59,12 @@ class Loader {
 		}
 		
 		$paths = array_merge( self::$paths, explode(PATH_SEPARATOR, get_include_path()) );
-		foreach (array($class, str_replace('\\', '_', $class)) as $style) {
+		foreach (
+				array(
+					str_replace('_', DIRECTORY_SEPARATOR, $class), 
+					str_replace(DIRECTORY_SEPARATOR, '_', $class)
+				) as $style
+			) {
 			foreach ($paths as $path) {
 				$path = realpath($path);
 				if (!$path)
@@ -155,31 +160,6 @@ class Loader {
 		}
 	}
 	
-}
-
-// Define default path constants
-if (!defined('APP_PATH') && defined('BASE_PATH')) {
-	define('APP_PATH', realpath(BASE_PATH.'/app'));
-	if (!defined('CACHE_PATH'))
-		define('CACHE_PATH', realpath(APP_PATH.'/Cache'));
-	
-	if (!defined('LOG_PATH'))	
-		define('LOG_PATH', realpath(APP_PATH.'/Logs'));
-	
-	if (!defined('TPL_PATH'))
-		define('TPL_PATH', realpath(APP_PATH.'/Templates'));
-	
-	if (!defined('TMP_PATH'))
-		define('TMP_PATH', realpath(BASE_PATH.'/tmp'));
-		
-	if (!defined('BIN_PATH'))
-		define('BIN_PATH', realpath(BASE_PATH.'/bin'));
-		
-	if (!defined('LIB_PATH'))
-		define('LIB_PATH', realpath(BASE_PATH.'/lib'));
-		
-	if (!defined('STATIC_PATH'))	
-		define('STATIC_PATH', realpath(BASE_PATH.'/static'));
 }
 
 // Register autoloader

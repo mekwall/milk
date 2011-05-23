@@ -1,6 +1,10 @@
 routes:
 - pattern: /
   target: function(){ return "Hello world!"; }
+- pattern: /hello
+  target: App\Views\HelloWorld::hello
+- pattern: /hello2
+  target: App\Views\HelloWorld->hello
 - pattern: /routes
   target: function(){ return "<pre>".var_export(Milk\Core\Dispatcher::getRoutes(), true)."</pre>"; }
 - pattern: /test

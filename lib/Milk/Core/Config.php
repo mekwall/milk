@@ -1,8 +1,11 @@
 <?php
 namespace Milk\Core;
 
-use \F3,
-	StdClass;
+use \StdClass;
+
+use Milk\Core\Exception,
+	Milk\Core\Cache,
+	Milk\Core\Translation;
 
 class Config {
 
@@ -19,13 +22,13 @@ class Config {
 	
 	public static function load($file, $mode=self::PRODUCTION) {
 		if (!is_readable($file))
-			return trigger_error("Config file is missing or can't be read");
+			throw Exception( _("Config file is missing or could not be read") );
 
 		if ($mode > 0)
-			F3::clear('MILK.CONFIG');
+			Cache::clear('MILK.CONFIG');
 		
-		if (F3::cached('MILK.CONFIG')) {
-			$confobj = F3::get('MILK.CONFIG');
+		if (Cache::cached('MILK.CONFIG')) {
+			$confobj = Cache::get('MILK.CONFIG');
 		} else {
 			self::$type = substr($file, strrpos($file, '.')+1);
 			
