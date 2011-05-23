@@ -1,0 +1,6 @@
+[
+	{
+		"pattern": "/hello",
+		"target": "function(){ return \"Hello world!\"; }"
+	}
+]
