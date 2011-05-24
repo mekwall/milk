@@ -1,2 +1,2 @@
 <?php
-require '../app/bootstrap.php';
+require "../app/_init.php";

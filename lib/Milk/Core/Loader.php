@@ -164,3 +164,6 @@ class Loader {
 
 // Register autoloader
 Loader::register();
+
+// Add Milk namespace to loader
+Loader::addNamespace("Milk", realpath(__DIR__.'/..'));

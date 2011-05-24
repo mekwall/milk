@@ -1,5 +1,5 @@
 <?php
-namespace App\Views;
+namespace Blog\Views;
 
 use Milk\Views\BaseView;
 

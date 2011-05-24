@@ -1,7 +1,12 @@
 <?php
 namespace Milk\Core;
 
-use Milk\Core\Dispatcher;
+if (!class_exists("Loader"))
+	require_once __DIR__."/Loader.php";
+
+use Milk\Core\Dispatcher,
+	Milk\Core\Config,
+	Milk\Core\Exception;
 
 /**
 	Core Application
@@ -10,8 +15,14 @@ use Milk\Core\Dispatcher;
 **/
 class Application {
 
+	/**
+		Variable to hold instance
+	**/
 	protected static $_instance = null;
 	
+	/**
+		Shared variables
+	**/
 	private $_vars = array();
 	
 	/**
@@ -20,7 +31,7 @@ class Application {
 	**/
 	public static function getInstance() {
 		if (!self::$_instance)
-			self::$_instance = new __CLASS__;
+			self::$_instance = new self;
 		return self::$_instance;
 	}
 
@@ -29,6 +40,10 @@ class Application {
 			@protected
 	**/
 	protected function bootstrap() {
+		// Enable error reporting
+		error_reporting(E_ALL);
+		ini_set("display_errors", 1);
+	
 		// Define default path constants
 		if (!defined('APP_PATH') && defined('BASE_PATH')) {
 			define('APP_PATH', realpath(BASE_PATH.'/app'));
@@ -37,6 +52,9 @@ class Application {
 			
 			if (!defined('LOG_PATH'))	
 				define('LOG_PATH', realpath(APP_PATH.'/Logs'));
+				
+			if (!defined('MODEL_PATH'))
+				define('MODEL_PATH', realpath(APP_PATH.'/Models'));
 			
 			if (!defined('TPL_PATH'))
 				define('TPL_PATH', realpath(APP_PATH.'/Templates'));
@@ -53,6 +71,15 @@ class Application {
 			if (!defined('STATIC_PATH'))	
 				define('STATIC_PATH', realpath(BASE_PATH.'/static'));
 		}
+		
+		// Load config if exist
+		
+		
+		// Load routes from files if they exist
+		if (is_readable(APP_PATH."/urls.yaml"))
+			Dispatcher::addRoutes(APP_PATH."/urls.yaml", Dispatcher::FILE);
+		else if (is_readable(APP_PATH."/urls.json"))
+			Dispatcher::addRoutes(APP_PATH."/urls.json", Dispatcher::FILE);
 	}
 
 	/**
@@ -60,6 +87,14 @@ class Application {
 			@public
 	**/
 	public function run() {
+		// Dispatch request
+		Dispatcher::dispatch();
+	}
+	
+	/**
+		Constructor
+	**/
+	public function __construct() {
 		$this->bootstrap();
 	}
 	
@@ -77,5 +112,3 @@ class Application {
 		$this->_vars[$key] = $value;
 	}
 }
-
-return Application::getInstance();
