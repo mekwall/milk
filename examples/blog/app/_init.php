@@ -2,26 +2,30 @@
 // Namespace of our app
 namespace Blog;
 
-// Include Milk
-require '/home/oddy/milk/lib/Milk/Core/Application.php';
-
-// Shorthand access to core modules
-use Milk\Core\Application,
-	Milk\Core\Loader,
-	Milk\Core\Dispatcher;
-
 // Define base path
 define('BASE_PATH', realpath(__DIR__.'/..'));
 
-// Setup path to current namespace
-Loader::addNamespace(__NAMESPACE__,
-	realpath(BASE_PATH.'/app'));
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set("display_errors", 1);
 
-// Instantiate our app
-$app = new Application;
+// Include and instantiate our app
+$app = require_once('/home/oddy/milk/lib/Milk/Core/Application.php');
 
-Dispatcher::addRoutes(
-	array('/article' => 'Blog\Views\Article::read')
-);
-
-$app->run();
+// Let's do some magic chaining
+$app
+	// Add current namespace to loader
+	->loader
+		->addNamespace(
+			__NAMESPACE__,
+			realpath(BASE_PATH.'/app')
+		)
+		->end() // Return to app instance
+	// Add a test route to dispatcher
+	->dispatcher
+		->addRoutes(array(
+			"/foo" => function() { return "Foo"; }
+		))
+		->end() // Return to app instance
+	// Run our app
+	->run();

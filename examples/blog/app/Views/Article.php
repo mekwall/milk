@@ -9,7 +9,7 @@ class Article extends BaseView {
 
 	public function read() {
 		$article = new Model;
-		return var_export($article, true);
+		return "<pre>".var_export($article, true)."</pre>";
 	}
 	
 }

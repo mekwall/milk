@@ -25,6 +25,30 @@ class Dispatcher {
 	// Parameters passed
 	private static $params = array();
 	
+	// Reference to current app
+	private static $_app;
+	
+	// Instance
+	private static $_instance;
+	
+	/**
+		Get instance
+			@public
+	**/
+	public static function getInstance($app=null) {
+		if (!self::$_instance)
+			self::$_instance = new self;
+		self::$_app = &$app;
+		return self::$_instance;
+	}
+	
+	/**
+		Return current app instance to allow chaining
+	**/
+	public function end() {
+		return self::$_app;
+	}
+
 	/**
 		Add routes to dispatcher
 			@param $routes mixed
@@ -33,7 +57,7 @@ class Dispatcher {
 			@public
 			@static
 	**/
-	public static function addRoutes($routes, $type=self::ARR, $base="/") {
+	public function addRoutes($routes, $type=self::ARR, $base="/") {
 
 		switch($type) {
 			case self::URL:
@@ -124,10 +148,9 @@ class Dispatcher {
 					}
 				}
 			}
-			return true;
+			return self::$_instance;
 		} else {
 			throw new Exception('Param is not an array');
-			return false;
 		}
 	}
 	
@@ -136,7 +159,7 @@ class Dispatcher {
 			@return array
 			@public
 	**/
-	public static function getRoutes() {
+	public function getRoutes() {
 		return self::$routes;
 	}
 	
@@ -145,13 +168,13 @@ class Dispatcher {
 			@param $uri string
 			@public
 	**/
-	public static function reroute($uri) {
+	public function reroute($uri) {
 		if (PHP_SAPI != 'cli' && !headers_sent()) {
 			// HTTP redirect
 			HTTP::redirect($uri);
 		}
 		self::mock('GET '.$uri);
-		self::dispatch();
+		return self::dispatch();
 	}
 	
 	/**
@@ -159,12 +182,13 @@ class Dispatcher {
 			@public
 			@static
 	**/
-	static function mock($pattern, array $params=NULL) {
+	public function mock($pattern, array $params=null) {
 		@list($method, $uri) = preg_split('/\s+/', $pattern, 2, PREG_SPLIT_NO_EMPTY);
 		$query = explode('&', parse_url($uri, PHP_URL_QUERY));
 		
 		$_SERVER['REQUEST_METHOD'] = $method;
 		$_SERVER['REQUEST_URI'] = $uri;
+		return self::$_instance;
 	}
 	
 	/**
@@ -172,7 +196,7 @@ class Dispatcher {
 			@public
 			@static
 	**/
-	public static function dispatch() {
+	public function dispatch() {
 	
 		if (count(self::$routes) === 0) {
 			throw new Exception( _("No routes exist") );
@@ -184,7 +208,7 @@ class Dispatcher {
 		
 		// Save the current time
 		$time = time();
-			
+		
 		// Process routes
 		foreach (self::$routes as $route) {
 			// Check if request method matches current route

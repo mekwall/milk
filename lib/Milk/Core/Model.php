@@ -21,9 +21,12 @@ class Model {
 		Constructor
 	**/
 	public function __construct($options=array()) {
-		if (empty($this->table))
+		if (empty($this->table)) {
+			$class = get_class($this);
+			$class = substr($class, strrpos($class, "\\")+1);
 			// Set table name based on model name
-			$this->table = Strings\Inflector::tableize(get_class($this));
+			$this->table = Strings\Inflector::tableize($class);
+		}
 			
 		$this->setupFields();
 		if (!isset($this->fields["id"])) {
@@ -39,6 +42,8 @@ class Model {
 	}
 	
 	final protected function addField($name, Model\Field $field) {
+		if (empty($field->column))
+			$field->column = $name;
 		$this->fields[$name] = &$field;
 	}
 	
@@ -133,13 +138,15 @@ class Model {
 
 namespace Milk\Core\Model;
 
+use Milk\Utils\Strings;
+
 class Field {
 
 	/**
 		The name of the database column to use for this field. 
 		If this isn't given, Milk will use the field's name.
 	**/
-	protected $column;
+	public $column;
 	
 	/**
 		If true, this field is the primary key for the model.

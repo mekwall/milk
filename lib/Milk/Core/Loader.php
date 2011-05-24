@@ -9,6 +9,30 @@ class Loader {
 	private static $loaded 		= array();
 	private static $paths 		= array();
 	private static $namespaces 	= array();
+	
+	// Reference to current app
+	private static $_app;
+	
+	// Instance
+	private static $_instance;
+	
+	/**
+		Get instance
+			@public
+	**/
+	public static function getInstance($app=null) {
+		if (!self::$_instance)
+			self::$_instance = new self;
+		self::$_app = &$app;
+		return self::$_instance;
+	}
+	
+	/**
+		Return current app instance to allow chaining
+	**/
+	public function end() {
+		return self::$_app;
+	}
 
 	/**
 		Load a class/interface
@@ -16,7 +40,7 @@ class Loader {
 			@public
 			@static
 	**/
-	public static function autoload($class) {
+	public function autoload($class) {
 		$list = get_included_files();
 		
 		// Check if the class/interface requested is in a namespace
@@ -111,8 +135,11 @@ class Loader {
 			@public
 			@static
 	**/
-	public static function register() {
-		spl_autoload_register(__CLASS__.'::autoload');
+	public function register() {
+		spl_autoload_register(
+			array(self::getInstance(), 'autoload')
+		);
+		return self::$_instance;
 	}
 	
 	/**
@@ -121,8 +148,9 @@ class Loader {
 			@public
 			@static
 	**/
-	public static function addPath($path) {
+	public function addPath($path) {
 		self::$paths[] = $path;
+		return self::$_instance;
 	}
 	
 	/**
@@ -131,10 +159,11 @@ class Loader {
 			@public
 			@static
 	**/
-	public static function addPaths($paths) {
+	public function addPaths($paths) {
 		foreach ($paths as $$path) {
 			self::addPath($path);
 		}
+		return self::$_instance;
 	}
 	
 	/**
@@ -144,8 +173,9 @@ class Loader {
 			@public
 			@static
 	**/
-	public static function addNamespace($ns, $path) {
+	public function addNamespace($ns, $path) {
 		self::$namespaces[$ns] = $path;
+		return self::$_instance;
 	}
 	
 	/**
@@ -154,10 +184,11 @@ class Loader {
 			@public
 			@static
 	**/
-	public static function addNamespaces($namespaces) {
+	public function addNamespaces($namespaces) {
 		foreach ($namespaces as $ns => $path) {
 			self::addNamespace($ns, $path);
 		}
+		return self::$_instance;
 	}
 	
 }

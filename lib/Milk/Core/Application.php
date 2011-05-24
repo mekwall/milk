@@ -40,10 +40,6 @@ class Application {
 			@protected
 	**/
 	protected function bootstrap() {
-		// Enable error reporting
-		error_reporting(E_ALL);
-		ini_set("display_errors", 1);
-	
 		// Define default path constants
 		if (!defined('APP_PATH') && defined('BASE_PATH')) {
 			define('APP_PATH', realpath(BASE_PATH.'/app'));
@@ -72,14 +68,19 @@ class Application {
 				define('STATIC_PATH', realpath(BASE_PATH.'/static'));
 		}
 		
-		// Load config if exist
+		// TODO: Load config if exist
 		
+		// Reference to loader instance
+		$this->loader = Loader::getInstance($this);
+		
+		// Reference to dispatcher instance
+		$this->dispatcher = Dispatcher::getInstance($this);
 		
 		// Load routes from files if they exist
 		if (is_readable(APP_PATH."/urls.yaml"))
-			Dispatcher::addRoutes(APP_PATH."/urls.yaml", Dispatcher::FILE);
+			$this->dispatcher->addRoutes(APP_PATH."/urls.yaml", Dispatcher::FILE);
 		else if (is_readable(APP_PATH."/urls.json"))
-			Dispatcher::addRoutes(APP_PATH."/urls.json", Dispatcher::FILE);
+			$this->dispatcher->addRoutes(APP_PATH."/urls.json", Dispatcher::FILE);
 	}
 
 	/**
@@ -88,7 +89,7 @@ class Application {
 	**/
 	public function run() {
 		// Dispatch request
-		Dispatcher::dispatch();
+		$this->dispatcher->dispatch();
 	}
 	
 	/**
@@ -112,3 +113,5 @@ class Application {
 		$this->_vars[$key] = $value;
 	}
 }
+
+return new Application;
