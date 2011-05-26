@@ -3,6 +3,10 @@ namespace Blog\Models;
 
 use Milk\Core\Model,
 	Milk\Core\Model\Field;
+	
+class ArticleManager extends Model\Manager {
+
+}	
 
 class Article extends Model {
 

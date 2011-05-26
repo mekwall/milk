@@ -1,5 +1,6 @@
 ---
 production:
+  timezone: Europe/Stockholm
   app_uuid: 1d2cc80e-62e3-4ab2-bd52-05194baa3f5d
   compress:
     enabled: true

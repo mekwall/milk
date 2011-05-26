@@ -1,9 +1,10 @@
 <?php
 namespace Milk\Core;
 
+// If not already loaded, load the loader ;)
 if (!class_exists("Loader"))
 	require_once __DIR__."/Loader.php";
-
+	
 use Milk\Core\Dispatcher,
 	Milk\Core\Config,
 	Milk\Core\Exception;
@@ -68,19 +69,34 @@ class Application {
 				define('STATIC_PATH', realpath(BASE_PATH.'/static'));
 		}
 		
-		// TODO: Load config if exist
-		
 		// Reference to loader instance
 		$this->loader = Loader::getInstance($this);
 		
+		// Reference to config instance
+		$this->config = Config::getInstance($this);
+
 		// Reference to dispatcher instance
 		$this->dispatcher = Dispatcher::getInstance($this);
 		
-		// Load routes from files if they exist
+		// Load config from file if exist
+		if (is_readable(APP_PATH."/config.yaml"))
+			$this->config->load(APP_PATH."/config.yaml");
+		else if (is_readable(APP_PATH."/config.json"))
+			$this->config->load(APP_PATH."/config.json");
+			
+		// Load routes from file if exist
 		if (is_readable(APP_PATH."/urls.yaml"))
 			$this->dispatcher->addRoutes(APP_PATH."/urls.yaml", Dispatcher::FILE);
 		else if (is_readable(APP_PATH."/urls.json"))
 			$this->dispatcher->addRoutes(APP_PATH."/urls.json", Dispatcher::FILE);
+		
+		// Make sure we have a default timezone set
+		if (isset($this->config->timezone))
+			$default_timezone = $this->config->timezone;
+		elseif (ini_get('date.timezone') == '')
+			$default_timezone = 'Europe/Stockholm';
+		
+		date_default_timezone_set($default_timezone);
 	}
 
 	/**
