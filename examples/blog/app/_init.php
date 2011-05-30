@@ -20,8 +20,8 @@ $app
 	// Add current namespace to loader
 	->loader
 		->addNamespace(
-			__NAMESPACE__,
-			realpath(BASE_PATH.'/app')
+			__NAMESPACE__, // Blog
+			__DIR__
 		)
 		->app() // Return to app instance
 	// Add a test route to dispatcher
