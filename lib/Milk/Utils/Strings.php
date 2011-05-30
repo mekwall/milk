@@ -167,10 +167,11 @@ abstract class Inflector {
 			return $word;
 			
 		foreach (self::$plurals as $rule => $replace) {
-			if (preg_replace($rule, $replace, $word))
+			$replaced = preg_replace($rule, $replace, $word);
+			if ($replaced !== $word)
 				break;
 		}
-		return $word;
+		return $replaced ?: $word;
 	}
 	
 	/**
@@ -183,10 +184,11 @@ abstract class Inflector {
 			return $word;
 			
 		foreach (self::$singulars as $rule => $replace) {
-			if (preg_replace($rule, $replace, $word))
+			$replaced = preg_replace($rule, $replace, $word);
+			if ($replaced !== $word)
 				break;
 		}
-		return $word;
+		return $replaced ?: $word;
 	}
 	
 	/**
@@ -197,10 +199,11 @@ abstract class Inflector {
 	public static function humanize($word) {
 		$word = str_replace("_", " ", $word);
 		foreach (self::$humans as $rule => $replace) {
-			if (preg_replace($rule, $replace, $word))
+			$replaced = preg_replace($rule, $replace, $word);
+			if ($replaced !== $word)
 				break;
 		}
-		return ucfirst($word);
+		return $replaced ?: $word;
 	}
 
 	/**
@@ -276,7 +279,7 @@ abstract class Slug {
 			$pos = strpos($subject, $search);
 			$i++;
 			if ($i>100)
-				throw new Exception( _("removeDuplicates() loop error") );
+				throw new Exception( _("Loop error") );
 
 		} while ($pos !== false);
 

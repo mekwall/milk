@@ -7,7 +7,7 @@ use Blog\Models\Article as Model;
 
 class Article extends BaseView {
 
-	public function read() {
+	public static function read() {
 		$article = new Model;
 		return "<pre>".var_export($article, true)."</pre>";
 	}

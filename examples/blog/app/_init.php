@@ -14,18 +14,21 @@ $app = require_once('/home/oddy/milk/lib/Milk/Core/Application.php');
 
 // Let's do some magic chaining
 $app
+	->config
+		->setGroup('production')
+		->app() // Return to app instance
 	// Add current namespace to loader
 	->loader
 		->addNamespace(
 			__NAMESPACE__,
 			realpath(BASE_PATH.'/app')
 		)
-		->end() // Return to app instance
+		->app() // Return to app instance
 	// Add a test route to dispatcher
 	->dispatcher
 		->addRoutes(array(
 			"/foo" => function() { return "Foo"; }
 		))
-		->end() // Return to app instance
+		->app() // Return to app instance
 	// Run our app
 	->run();

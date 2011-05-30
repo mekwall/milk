@@ -1,20 +1,23 @@
 <?php
 namespace Blog\Models;
 
-use Milk\Core\Model,
-	Milk\Core\Model\Field;
+use Milk\DB\Model,
+	Milk\DB\Model\Field,
+	Milk\Utils\Strings\Inflector;
 	
 class ArticleManager extends Model\Manager {
 
-}	
+}
 
 class Article extends Model {
-
-	protected function setupFields() {
+	protected function setup() {
+		// Add fields
 		$this->addFields(
 			array(
 				"author" =>
-					new Field\OneToOne(),
+					new Field\OneToOne(array(
+						"index" => true
+					)),
 				"title" =>
 					new Field\Text(),
 				"slug" => 
@@ -29,3 +32,6 @@ class Article extends Model {
 		);
 	}
 }
+
+Inflector::plural("/(article)/i", "articles");
+Inflector::singular("/(articles)/i", "article");

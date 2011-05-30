@@ -4,13 +4,37 @@ namespace Milk\Core;
 use \Exception as PHPException,
 	\ErrorException as PHPErrorException;
 
-use Milk\Utils\HTTP;
-	
-class Exception extends PHPException {
+/**
+	Interface for exceptions
+**/
+interface IException {	
+	// Exception message
+    public function getMessage();
+	// User-defined Exception code	
+    public function getCode();
+	// Source filename
+    public function getFile();
+	// Source line
+    public function getLine();
+	// An array of the backtrace()
+    public function getTrace();
+	// Formated string of trace
+    public function getTraceAsString();
+	// Formatted string for display
+    public function __toString();
+	// Constructor
+    public function __construct($message = null, $code = 0);
+}
 
-	public static function exceptionHandler(Exception $e) {
+/**
+	Base exception
+**/
+class Exception extends PHPException implements IException {
+
+	public static function exceptionHandler($e) {
 		// Message templates
 		$traceline_tpl = "#%s %s(%s): %s(%s)";
+		$traceline_tpl_class = "#%s %s%s%s(%s)";
 		$msg_tpl = "PHP Fatal error:  Uncaught exception '%s' with message '%s' in %s:%s\n\nStack trace:\n%s\n  thrown in %s on line %s";
 		
 		// Extract vars from exception
@@ -26,15 +50,15 @@ class Exception extends PHPException {
 			// getting logged as anything other than 'string')
 			$trace[$key]['args'] = array_map('gettype', $trace[$key]['args']);
 		}
-
+		
 		// Build tracelines
 		$result = array();
 		foreach ($trace as $key => $stackPoint) {
 			$result[] = sprintf(
-				$traceline_tpl,
+				isset($stackPoint['file']) ? $traceline_tpl : $traceline_tpl_class,
 				$key,
-				$stackPoint['file'],
-				$stackPoint['line'],
+				isset($stackPoint['file']) ? $stackPoint['file'] : $stackPoint['class'],
+				isset($stackPoint['line']) ? $stackPoint['line'] : $stackPoint['type'],
 				$stackPoint['function'],
 				implode(', ', $stackPoint['args'])
 			);
@@ -57,8 +81,7 @@ class Exception extends PHPException {
 		// Log message
 		//error_log($msg);
 		
-		HTTP::status(500);
-
+		header("Status: 500");
 ?>
 <!DOCTYPE html>
 <html>
@@ -92,8 +115,11 @@ class Exception extends PHPException {
 		body, html { font-family: Trebuchet, Tahoma; font-size: .95em; }
 		.ui-widget { font-size: .9em; }
 		h2,h3,h4,h5,h6 { font-family: Arial, Serif; }
+		p { line-height: 1.7em; }
 		#container { margin: auto; max-width: 1000px; }
 		#footer { text-align: center; margin: 20px; line-height: 1.5em; }
+		pre,
+		span.code,
 		.syntaxhighlighter {
 			font-family: Consolas;
 		}
@@ -106,6 +132,7 @@ class Exception extends PHPException {
 			background-color: red !important;
 			border-right: 3px solid red !important;
 		}
+		span.code { display: inline; background-color: #f1f1f1; padding: 2px 5px; } 
 	</style>
 	<title>Internal Server Error</title>
 </head>
@@ -113,13 +140,19 @@ class Exception extends PHPException {
 <div id="container">
 	<h1>Internal Server Error</h1>
 	<h3>Fatal error: Uncaught exception '<?php echo $class; ?>'</h3>
-	<p><?php echo $message ?> in file <?php echo $file ?> on line <?php echo $line ?></p>
+	<p><?php echo $message ?> in file <span class="code"><?php echo $file ?></span> on line <?php echo $line ?></p>
 	<div id="accordion">
 		<h3><a href="#">Source</a></h3>
 
 		<div>
 			<pre style="display: none;" class="brush: php; highlight: [<?php echo $line; ?>];"><?php echo htmlentities(file_get_contents($file)); ?></pre>
-		</div>		
+		</div>
+
+		<h3><a href="#">Stack trace</a></h3>
+		<div>
+			<pre><?php echo implode("\n", $result); ?></pre>
+		</div>
+		
 		<h3><a href="#">$_SERVER dump</a></h3>
 		<div>
 			<pre><?php var_dump($_SERVER); ?></pre>
@@ -131,7 +164,7 @@ class Exception extends PHPException {
 		</div>
 	</div>
 	<div id="footer">
-		<img src="http://27.media.tumblr.com/tumblr_lh1jy8q1rO1qdmdxco1_500.jpg" alt="" /><br>
+		<img src="http://27.media.tumblr.com/tumblr_lh1jy8q1rO1qdmdxco1_500.jpg" alt="Milk was a bad choice!" /><br>
 		PHP <?php echo phpversion(); ?> • <?php echo PHP_SAPI; ?> • <?php echo $_SERVER['SERVER_SOFTWARE']; ?> • <?php echo PHP_OS; ?> • <?php echo $_SERVER['SERVER_NAME']; ?><br>
 		Time: <?php echo round(xdebug_time_index(), 4); ?> sec • Curr/peak: <?php echo xdebug_memory_usage(); ?>/<?php echo xdebug_peak_memory_usage(); ?> Bytes
 	</div>

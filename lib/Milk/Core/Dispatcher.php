@@ -1,12 +1,17 @@
 <?php
 namespace Milk\Core;
 
+// Dependencies
 use Milk\Core\Exception,
-	Milk\Core\Dispatcher\Route;
-	
-use Milk\Utils\HTTP;
+	Milk\Core\Module,
+	Milk\Core\Cache,
+	Milk\Core\Dispatcher\Route,
+	Milk\IO\Http;
 
-class Dispatcher {
+/**
+	Dispatcher class
+**/
+class Dispatcher extends Module\Singleton {
 	
 	// Constants
 	const ARR	= 0;
@@ -25,37 +30,13 @@ class Dispatcher {
 	// Parameters passed
 	private static $params = array();
 	
-	// Reference to current app
-	private static $_app;
-	
-	// Instance
-	private static $_instance;
-	
-	/**
-		Get instance
-			@public
-	**/
-	public static function getInstance($app=null) {
-		if (!self::$_instance)
-			self::$_instance = new self;
-		self::$_app = &$app;
-		return self::$_instance;
-	}
-	
-	/**
-		Return current app instance to allow chaining
-	**/
-	public function end() {
-		return self::$_app;
-	}
-
 	/**
 		Add routes to dispatcher
+			@public
 			@param $routes mixed
 			@param $type const
 			@param $base string
-			@public
-			@static
+			@return self
 	**/
 	public function addRoutes($routes, $type=self::ARR, $base="/") {
 
@@ -135,8 +116,9 @@ class Dispatcher {
 								//self::import(substr($route->target, 1));
 							}
 						
-							if (strpos($route->target, "function(") !== false)
-								eval('$route->target='.$route->target.';');
+							if (strpos($route->target, "function(") !== false) {
+								$route->target = new \Milk\Core\Closure($route->target);
+							}
 						}
 						
 						self::$routes[$route->pattern] = new Route(
@@ -148,10 +130,41 @@ class Dispatcher {
 					}
 				}
 			}
-			return self::$_instance;
+			return self::getInstance();
 		} else {
 			throw new Exception('Param is not an array');
 		}
+	}
+	
+	/**
+		Add raw routes
+			@public
+			@param $cache_key string
+			@return boolean
+	**/
+	public function addRawRoutes($routes) {
+		self::$routes = $routes;
+	}
+	
+	/**
+		Add routes from cache
+			@public
+			@param $cache_key string
+			@return boolean
+	**/
+	public function addCachedRoutes($cache_key) {
+		if (!Cache::exists($cache_key))
+			return false;
+		self::$routes = Cache::get($cache_key);
+		return true;
+	}
+	
+	/**
+		Cache current routes
+	**/
+	public function cacheRoutes($cache_key) {
+		Cache::put($cache_key, self::$routes, 60);
+		return true;
 	}
 	
 	/**
@@ -170,8 +183,8 @@ class Dispatcher {
 	**/
 	public function reroute($uri) {
 		if (PHP_SAPI != 'cli' && !headers_sent()) {
-			// HTTP redirect
-			HTTP::redirect($uri);
+			// Redirect request with HTTP
+			Http::redirect($uri);
 		}
 		self::mock('GET '.$uri);
 		return self::dispatch();
@@ -180,7 +193,6 @@ class Dispatcher {
 	/**
 		Mock request to dispatch
 			@public
-			@static
 	**/
 	public function mock($pattern, array $params=null) {
 		@list($method, $uri) = preg_split('/\s+/', $pattern, 2, PREG_SPLIT_NO_EMPTY);
@@ -194,10 +206,29 @@ class Dispatcher {
 	/**
 		Dispatch request to route
 			@public
-			@static
 	**/
 	public function dispatch() {
 	
+		$request = new Http\Request;
+	
+		$request_uri = rawurldecode($_SERVER['REQUEST_URI']);
+		$request_method = $_SERVER['REQUEST_METHOD'];
+		
+		$output_cache_key = "Dispatcher::output($request_method $request_uri)";
+		$route_cache_key = "Dispatcher::dispatch($request_method $request_uri)";
+		
+		if (Cache::exists($output_cache_key)) {
+			self::output(Cache::get($output_cache_key));
+			return;
+		} else if (Cache::exists($route_cache_key)) {
+			$route = Cache::get($route_cache_key);
+			$output = self::call($route, $request);
+			if ($route->ttl > 0)
+				Cache::put($output_cache_key, $out, $route->ttl);
+			self::output($output);
+			return;
+		}
+		
 		if (count(self::$routes) === 0) {
 			throw new Exception( _("No routes exist") );
 			return;
@@ -212,12 +243,12 @@ class Dispatcher {
 		// Process routes
 		foreach (self::$routes as $route) {
 			// Check if request method matches current route
-			if (!in_array($_SERVER['REQUEST_METHOD'], $route->methods))
+			if (!in_array($request_method, $route->methods))
 				continue;
 			
 			// Get base path
-			$base = substr(rawurldecode($_SERVER['REQUEST_URI']), strlen($route->base)-1);
-		
+			$base = substr($request_uri, strlen($route->base)-1);
+
 			// Build pattern
 			$pattern = 
 				'|^'.
@@ -240,92 +271,109 @@ class Dispatcher {
 					)
 				)
 				continue;
-			
-			if (!$route->hotlink &&
-				isset($_SERVER['HTTP_REFERER']) &&
-				parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST) != $_SERVER['SERVER_NAME'])
-				// Hot link detected; Redirect page
-				self::reroute(self::$hotlink);
-				
-			// Save named uri captures
-			foreach ($args as $key => $arg)
-				// Remove non-zero indexed elements
-				if (is_numeric($key) && $key)
-					 unset($args[$key]);
-					 
-			self::$params = $args;
-			
-			// Dispatch to target
-			$classes = array();
-			$targets = is_string($route->target) ? explode('|', $route->target) : array($route->target);
-			foreach ($targets as $target) {
-				if (is_string($target)) {
-					// Replace tokens in route handler, if any
-					$diff = FALSE;
-					if (preg_match('/{{.+}}/', $target)) {
-						$target = self::resolve($target);
-						$diff = TRUE;
-					}
-					
-					if (preg_match('/(.+)(->|::)(.+)/', $target, $match)) {
-						if ($diff && (!class_exists($match[1]) ||
-							!method_exists($match[1],$match[3]))) {
-							// Method not found
-							throw new Exception( _("Method not found") );
-							return;
-						}
-						$target = array($match[2]=='->' ?
-							new $match[1] : $match[1], $match[3]);
-						
-					} elseif ($diff && !function_exists($target)) {
-						// Method not found
-						throw new Exception( _("Method not found") );
-						return;
-					}
-				}
-					
-				if (!is_callable($target)) {
-					// Method not callable
-					throw new Exception( _("Method not callable") );
-				}
-				
-				$oop = is_array($target) && (is_object($target[0]) || is_string($target[0]));
-				
-				if ($oop && method_exists($target[0], $before='beforeRoute') &&
-					!in_array($target[0], $classes)) {
-					// Execute beforeRoute() once per class
-					call_user_func( array($target[0], $before) );
-					$classes[] = is_object($target[0]) ? get_class($target[0]) : $target[0];
-				}
-				
-				// Call target method
-				$out = call_user_func_array(
-					$target,
-					array_splice($args, 1)
-				);
-				
-				if ($oop && method_exists($target[0], $after='afterRoute') &&
-					!in_array($target[0], $classes)) {
-					// Execute afterRoute() once per class
-					call_user_func( array($target[0],$after) );
-					$classes[] = is_object($target[0]) ? get_class($target[0]) : $target[0];
-				}
-
-				echo $out;
+			else {
+				$route->args = $args;
+				Cache::put($route_cache_key, $route, 60);
 			}
+			
+			$output = self::call($route, $request);
+			if ($route->ttl > 0)
+				Cache::put($output_cache_key, $output, $route->ttl);
+			self::output($output);
 			return;
 		}
 		
 		// No route matching current request
-		HTTP::notFound();
+		Http::notFound();
 		throw new Exception( sprintf(_("Route '%s' does not exist"), $_SERVER['REQUEST_URI']) );
+	}
+	
+	/**
+		Call route
+			@param $route object
+	**/
+	private function call(Route $route, Http\Request $request) {
+		if (!$route->hotlink &&
+			isset($_SERVER['HTTP_REFERER']) &&
+			parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST) != $_SERVER['SERVER_NAME'])
+			// Hot link detected; Redirect page
+			self::reroute(self::$hotlink);
+			
+		// Save named uri captures
+		foreach ($route->args as $key => $arg)
+			// Remove non-zero indexed elements
+			if (is_numeric($key) && $key)
+				 unset($args[$key]);
+		
+		// Dispatch to target
+		$classes = array();
+		$targets = is_string($route->target) ? explode('|', $route->target) : array($route->target);
+		foreach ($targets as $target) {
+			if (is_string($target)) {
+				// Replace tokens in route handler, if any
+				$diff = FALSE;
+				if (preg_match('/{{.+}}/', $target)) {
+					$target = self::resolve($target);
+					$diff = TRUE;
+				}
+				
+				if (preg_match('/(.+)(->|::)(.+)/', $target, $match)) {
+					if ($diff && (!class_exists($match[1]) ||
+						!method_exists($match[1],$match[3]))) {
+						// Method not found
+						throw new Exception( _("Method not found") );
+						return;
+					}
+					$target = array($match[2]=='->' ?
+						new $match[1] : $match[1], $match[3]);
+					
+				} elseif ($diff && !function_exists($target)) {
+					// Method not found
+					throw new Exception( _("Method not found") );
+					return;
+				}
+			}
+				
+			if (!is_callable($target)) {
+				// Method not callable
+				throw new Exception( _("Method not callable") );
+			}
+			
+			$oop = is_array($target) && (is_object($target[0]) || is_string($target[0]));
+			
+			if ($oop && method_exists($target[0], $before='beforeRoute') &&
+				!in_array($target[0], $classes)) {
+				// Execute beforeRoute() once per class
+				call_user_func( array($target[0], $before) );
+				$classes[] = is_object($target[0]) ? get_class($target[0]) : $target[0];
+			}
+			
+			// Call target method
+			$out = call_user_func_array(
+				$target,
+				array_splice($route->args, 1)
+			);
+			
+			if ($oop && method_exists($target[0], $after='afterRoute') &&
+				!in_array($target[0], $classes)) {
+				// Execute afterRoute() once per class
+				call_user_func( array($target[0],$after) );
+				$classes[] = is_object($target[0]) ? get_class($target[0]) : $target[0];
+			}
+			return $out;
+		}
+	}
+	
+	public function output($output) {
+		$output .= 'Time: '.round(xdebug_time_index(), 6).' Mem: '.xdebug_memory_usage().'/'.xdebug_peak_memory_usage();
+		echo $output;
 	}
 }
 
 namespace Milk\Core\Dispatcher;
 
 use Milk\Core\Dispatcher,
-	Milk\Utils\HTTP;
+	Milk\IO\Http;
 
 class Route {
 
@@ -350,7 +398,7 @@ class Route {
 		if (count($request) > 1)
 			$this->methods = explode('|', strtoupper($request[0]));
 		else
-			$this->methods = &HTTP::$methods;
+			$this->methods = &Http::$methods;
 
 		$this->pattern = $pattern;
 		$this->ttl = $ttl;

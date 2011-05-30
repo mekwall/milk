@@ -5,7 +5,7 @@ use Milk\Views\BaseView;
 
 class HelloWorld extends BaseView {
 
-	public function hello() {
+	public static function hello() {
 	
 		return "Hello world!";
 	

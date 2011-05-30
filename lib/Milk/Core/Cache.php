@@ -1,39 +1,45 @@
 <?php
 namespace Milk\Core;
 
-class Cache {
+use Milk\Core\Module,
+	Milk\Core\Exception,
+	Milk\Core\Cache\Backend;
 
-	// Reference to current app
-	private static $_app;
+class Cache extends Module\Singleton {
 	
-	// Instance
-	private static $_instance;
+	// Backends
+	private static $_backends = array();
 	
-	/**
-		Get instance
-			@public
-	**/
-	public static function getInstance($app=null) {
-		if (!self::$_instance)
-			self::$_instance = new self;
-		self::$_app = &$app;
-		return self::$_instance;
-	}
-	
-	/**
-		Return current app instance to allow chaining
-	**/
-	public function end() {
-		return self::$_app;
+	public static function loadBackends($backends) {
+		foreach ($backends as $name => $backend) {
+			$class = "Milk\\Core\\Cache\\Backend\\$backend";
+			self::$_backends[$name] = new $class;
+		}
 	}
 
-	public function clear($var) {
-		return true;
+	public static function clear($key, $backend='default') {
+		if (isset(self::$_backends[$backend]))
+			return self::$_backends[$backend]->clear($key);
 	}
 	
-	public function cached($var) {
-		return false;
+	public static function exists($key, $backend='default') {
+		if (isset(self::$_backends[$backend]))
+			return self::$_backends[$backend]->exists($key);
 	}
-
+	
+	public static function put($key, $val, $ttl=0, $backend='default') {
+		if (isset(self::$_backends[$backend]))
+			return self::$_backends[$backend]->put($key, $val, $ttl);
+	}
+	
+	public static function get($key, $backend='default') {
+		if (isset(self::$_backends[$backend]))
+			return self::$_backends[$backend]->get($key);
+	}
+	
+	public static function __callStatic($func, $arguments) {
+		$obj = self::getInstance();
+		return call_user_func_array($obj->$func, $arguments);
+	}
 
 }

@@ -1,39 +1,20 @@
 <?php
 namespace Milk\Core;
 
-use Milk\Core\Exception,
+// We have to include Core\Module if it doesn't exist
+if (!class_exists('Milk\Core\Module'))
+	require_once 'Module.php';
+	
+use Milk\Core\Module,
+	Milk\Core\Loader\Exception,
 	Milk\Utils\Translation;
 
-class Loader {
+class Loader extends Module\Singleton {
 
 	private static $loaded 		= array();
 	private static $paths 		= array();
 	private static $namespaces 	= array();
 	
-	// Reference to current app
-	private static $_app;
-	
-	// Instance
-	private static $_instance;
-	
-	/**
-		Get instance
-			@public
-	**/
-	public static function getInstance($app=null) {
-		if (!self::$_instance)
-			self::$_instance = new self;
-		self::$_app = &$app;
-		return self::$_instance;
-	}
-	
-	/**
-		Return current app instance to allow chaining
-	**/
-	public function end() {
-		return self::$_app;
-	}
-
 	/**
 		Load a class/interface
 			@param $class string
@@ -139,7 +120,7 @@ class Loader {
 		spl_autoload_register(
 			array(self::getInstance(), 'autoload')
 		);
-		return self::$_instance;
+		return self::getInstance();
 	}
 	
 	/**
@@ -175,7 +156,7 @@ class Loader {
 	**/
 	public function addNamespace($ns, $path) {
 		self::$namespaces[$ns] = $path;
-		return self::$_instance;
+		return self::getInstance();
 	}
 	
 	/**
@@ -198,3 +179,17 @@ Loader::register();
 
 // Add Milk namespace to loader
 Loader::addNamespace("Milk", realpath(__DIR__.'/..'));
+
+namespace Milk\Core\Loader;
+
+use Milk\Core\Exception as BaseException;
+
+class Exception extends BaseException {
+	
+	public function __construct($message=null, $code=0) {
+		$trace = $this->getTrace();
+		$this->file = $trace[1]['file'];
+		$this->line = $trace[1]['line'];
+		parent::__construct($message, $code);
+	}
+}
