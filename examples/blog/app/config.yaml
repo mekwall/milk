@@ -5,9 +5,11 @@ default:
   timezone: Europe/Stockholm
   app_uuid: 1d2cc80e-62e3-4ab2-bd52-05194baa3f5d
   charset: sv-se
-  locale:
-    all: sv_SE.UTF-8
-    textdomain: Milk
+  languages:
+    sv:
+      locale:
+        all: sv_SE.UTF-8
+        textdomain: Milk
   cookie:
     domain: .maklarpaket.se
   session:

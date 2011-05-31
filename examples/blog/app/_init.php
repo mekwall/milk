@@ -15,7 +15,7 @@ $app = require_once('/home/oddy/milk/lib/Milk/Core/Application.php');
 // Let's do some magic chaining
 $app
 	->config
-		->setGroup('production')
+		->setGroup('stage')
 		->app() // Return to app instance
 	// Add current namespace to loader
 	->loader
