@@ -222,11 +222,12 @@ class Dispatcher extends Module\Singleton {
 			return;
 		} else if (Cache::exists($route_cache_key)) {
 			$route = Cache::get($route_cache_key);
-			$output = self::call($route, $request);
+			$response = self::call($route, $request);
+			if (!is_object($response)) 
+				$response = new Http\Response($response);
 			if ($route->ttl > 0)
-				Cache::put($output_cache_key, $out, $route->ttl);
-			self::output($output);
-			return;
+				Cache::put($output_cache_key, $response, $route->ttl);
+			return $response->send();
 		}
 		
 		if (count(self::$routes) === 0) {
@@ -276,11 +277,15 @@ class Dispatcher extends Module\Singleton {
 				Cache::put($route_cache_key, $route, 60);
 			}
 			
-			$output = self::call($route, $request);
+			$response = self::call($route, $request);
+			
+			if (!is_object($response)) 
+				$response = new Http\Response($response);
+			
 			if ($route->ttl > 0)
-				Cache::put($output_cache_key, $output, $route->ttl);
-			self::output($output);
-			return;
+				Cache::put($output_cache_key, $response, $route->ttl);
+
+			return $response->send();
 		}
 		
 		// No route matching current request
@@ -334,39 +339,21 @@ class Dispatcher extends Module\Singleton {
 				}
 			}
 				
-			if (!is_callable($target)) {
+			if (!is_callable($target))
 				// Method not callable
 				throw new Exception( _("Method not callable") );
-			}
 			
-			$oop = is_array($target) && (is_object($target[0]) || is_string($target[0]));
-			
-			if ($oop && method_exists($target[0], $before='beforeRoute') &&
-				!in_array($target[0], $classes)) {
-				// Execute beforeRoute() once per class
-				call_user_func( array($target[0], $before) );
-				$classes[] = is_object($target[0]) ? get_class($target[0]) : $target[0];
-			}
+			// Set args
+			$request->setArgs(array_splice($route->args, 1));
 			
 			// Call target method
-			$out = call_user_func_array(
+			$response = call_user_func(
 				$target,
-				array_splice($route->args, 1)
+				$request
 			);
 			
-			if ($oop && method_exists($target[0], $after='afterRoute') &&
-				!in_array($target[0], $classes)) {
-				// Execute afterRoute() once per class
-				call_user_func( array($target[0],$after) );
-				$classes[] = is_object($target[0]) ? get_class($target[0]) : $target[0];
-			}
-			return $out;
+			return $response;
 		}
-	}
-	
-	public function output($output) {
-		$output .= 'Time: '.round(xdebug_time_index(), 6).' Mem: '.xdebug_memory_usage().'/'.xdebug_peak_memory_usage();
-		echo $output;
 	}
 }
 

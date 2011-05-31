@@ -54,6 +54,7 @@ class Response {
 
 	protected $headers;
 	protected $content;
+	
 	protected $content_type = 'text/html';
 	protected $status_code = 200;
 	
@@ -62,7 +63,17 @@ class Response {
 			@public
 	**/
 	public function send() {
+		$this->addHeaders(array(
+			'Status', $this->status_code,
+			'Content-Type', $this->content_type
+		));
+		foreach ($this->headers as $header)
+			if (!$header->sent)
+				$header->send();
+				
+		$this->content .= 'Time: '.round(xdebug_time_index(), 6).' Mem: '.xdebug_memory_usage().'/'.xdebug_peak_memory_usage();
 	
+		echo $this->content;
 	}
 	
 	/**
@@ -71,6 +82,7 @@ class Response {
 	public function addHeaders(array $headers) {
 		foreach ($headers as $name => $values)
 			$this->headers[] = new Header($name, $values);
+		return $this;
 	}
 	
 	/**
@@ -78,6 +90,7 @@ class Response {
 	**/
 	public function addHeader($name, $values) {
 		$this->headers[] = new Header($name, $values);
+		return $this;
 	}
 	
 	/**
@@ -85,6 +98,19 @@ class Response {
 	**/
 	public function setStatusCode($code) {
 		$this->status_code = (int)$code;
+		return $this;
+	}
+	
+	/**
+		Set the content
+	**/
+	public function setContent($content) {
+		$this->content = $content;
+		return $this;
+	}
+	
+	public function __toString() {
+		return $this->content;
 	}
 }
 
@@ -105,6 +131,7 @@ class Request {
 
 	protected $session;
 	protected $raw_post_data;
+	protected $arguments;
 
 	public function __construct() {
 	
@@ -163,9 +190,33 @@ class Request {
 			== 'xmlhttprequest')
 			? true : false;
 	}
+	
+	public function setArgs($args) {
+		$this->arguments = $args;
+	}
+	
+	public function __get($key) {
+		if (isset($this->arguments[$key]))
+			return $this->arguments[$key];
+	}
+	
+	public function __isset($key) {
+		return isset($this->arguments[$key]);
+	}
 }
 
 class Header {
 	protected $name;
-	protected $values;
+	protected $values = array();
+	public $sent = false;
+	
+	public function __construct($name, $values) {
+		$this->name = $name;
+		$this->values = (array)$values;
+	}
+	
+	public function send() {
+		$this->sent = true;
+		header($this->name, implode(',', $this->values));
+	}
 }
