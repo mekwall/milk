@@ -64,8 +64,9 @@ class Response {
 	**/
 	public function send() {
 		$this->addHeaders(array(
-			'Status', $this->status_code,
-			'Content-Type', $this->content_type
+			'Status' => $this->status_code,
+			'Content-Type' => $this->content_type,
+			'X-Powered-By' => "Milk"
 		));
 		foreach ($this->headers as $header)
 			if (!$header->sent)
@@ -217,6 +218,6 @@ class Header {
 	
 	public function send() {
 		$this->sent = true;
-		header($this->name, implode(',', $this->values));
+		header($this->name.": ".implode(',', $this->values));
 	}
 }
